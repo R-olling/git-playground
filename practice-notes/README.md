@@ -249,3 +249,53 @@ git commit -m "Resolve ... conflict"
 ## 20. 术语澄清：是"暂存区"，不是"缓存"
 
 `git add` 把改动放进的是 **暂存区（staging area）**，准备提交用的；不要叫"缓存"（cache，指另一个概念）。术语记准，看文档不懵。
+
+## 21. 第 9 节：克隆队友 + 历史分叉（push 被拒）
+
+- 用 `git clone 仓库地址 新文件夹名` 在**原仓库旁边**建一个兄弟副本（模拟队友）；副本的 VS Code 里看不到是正常的——VS Code 只显示你打开过的文件夹
+- 副本里 `git config user.name / user.email`（不带 --global）只改**这个仓库**的身份 → 提交作者显示 Teammate，两个作者一目了然
+- 队友推了新提交后，你自己本地也提交、**不拉取直接 push** → **被拒**：
+  `! [rejected] main -> main (non-fast-forward)` / "remote contains work that you do not have locally"
+- 原因 = **历史分叉（history divergence）**：远程有你本地没有的提交（哪怕改的是不同文件），git 一律拒绝覆盖式推送
+- 解决：`git pull --rebase`（把远程提交拉下来 + 把你的提交重放到它上面）→ `git log --oneline -4`（看到一条直线）→ 再 `git push` 成功
+
+## 22. 第 10 节：pull --rebase vs pull --no-rebase
+
+| | pull --rebase | pull --no-rebase（merge） |
+|---|---|---|
+| 你的提交 | **被重写**（新哈希） | **保留原样**（哈希不变） |
+| 历史形状 | 一条直线 | 分叉 + 合并提交（`git log --graph` 可见交叉） |
+| 场景 | 想保持历史干净 | 想保留协作分叉的真实痕迹 |
+
+`--no-edit` = 接受 git 自动生成的合并消息、不弹编辑器（和 `core.editor=true` 一个思路）。
+
+## 23. 第 11 节：stash（把干一半的活"存起来"）
+
+- `git stash push -m "说明"` = 把未提交的改动存进"保险柜"并清空工作区 → 可以随便 `git switch` 切分支
+- `git stash list` = 看保险柜里有什么；`git stash pop` = 取回（成功时自动销毁存单，输出 `Dropped refs/stash@{0}`）
+- ⚠️ 默认**只存已跟踪的改动**：新建的、从没 add 过的文件不会被存；要连它们一起存：`git stash push -u`
+- ⚠️ pop 时如果目标文件已变，可能冲突——冲突时 stash 保留，先解决冲突再说
+
+## 24. 第 12 节 revert vs 第 13 节 reset（撤销的两种方式）
+
+- **revert（撤销已推送的提交）**：追加一个**反向提交**抵消效果——**历史完整保留**（`d1e06ec` 错误提交还在，后面跟一个 `Revert` 提交删掉文件）；适合别人可能已拉过的提交
+- **reset（重做未推送的提交）**：把提交**撤下来重做**——`git reset --soft HEAD~1` 后，草稿提交从 log 消失、**改动还留在暂存区**，改写后重新 commit
+- 关键区别：**revert 留着历史，reset 抹掉重来**；`HEAD~1` = HEAD 的上一个提交（~1 = 往前数 1）
+- `--soft` = 只退提交指针，工作区和暂存区都不动
+
+## 25. 第 14 节：restore 的两种用法
+
+- `git restore --staged 文件` = **取消暂存**（add 的反操作）——改动还在文件里
+- `git restore 文件` = **丢弃工作区改动**——文件回到最近一次提交的状态，**改动基本找不回来**（没提交没 stash 的改动 git 救不了，丢弃前三思）
+
+## 26. 撤销三兄弟对比 + 收尾（第 15 节）
+
+| 命令 | 对象 | 效果 | 历史 |
+|---|---|---|---|
+| `git revert` | 已推送的提交 | 追加反向提交抵消 | 保留 |
+| `git reset --soft` | 未推送的提交 | 提交撤下、改动留在暂存区 | 抹掉 |
+| `git restore` | 未提交的改动 | 工作区/暂存区回退 | 无 |
+
+收尾检查（第 15 节）：`git push` → `git status` 干净 → `git log --graph --oneline --decorate --all -25` 能看到这一天折腾出来的完整历史：分支提交、PR 合并提交、merge 合并提交、rebase 重放的提交、显式 revert，全在图里。
+
+**教程 15 节全通关！**
