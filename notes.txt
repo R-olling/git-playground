@@ -1,2 +1,3 @@
 ﻿My Git practice notes
 I can inspect and save changes.
+My simultaneous local change.
