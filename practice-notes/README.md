@@ -199,3 +199,53 @@ git commit -m "Resolve ... conflict"
 两个易混点：
 - 冲突解决时改的是工作区里**"无主"的冲突现场文件**（同时装着双方版本，不属于任何分支）；purple 最终归 rebase 后的 "Choose green" 提交所有
 - rebase **不需要你站在 main 上**：当前分支是执行者，main 只是"新底座"
+
+## 17. 第 7 节：Pull Request 全流程（自己的话版）
+
+**本地半场（终端）**：建分支 → 写文件 → add（暂存）→ commit（提交并命名）→ push -u（推送到 GitHub 对应分支）
+
+**远程半场（网页）**：创建 PR（base = 目的地 main，compare = 来源 pr-notes）→ 审查 Files changed → 点 Merge 合并
+
+关键理解：
+- **PR 不是 git 命令，是 GitHub 的"审批流程"**：写代码的人通过 PR 申请把分支合进主分支，审查后批准
+- `-u`（--set-upstream）= 建立跟踪：之后在这个分支上 `git push` / `git pull` 免参数
+- `base: main` = 改动最终合到哪；`compare: pr-notes` = 改动从哪来（方向别记反）
+- **Create a merge commit ≠ 揉成一个**：它保留原始提交，只产生一个"接点提交"（像绳子打结，结是新的、绳子都在）；**Squash and merge** 才是把所有提交压成一个
+- 合并发生的是**远程** main；本地电脑不知情，要靠 fetch / pull 同步
+
+## 18. 第 8 节：fetch vs pull（修正版故事）
+
+① 网页上：PR 已合并 → 远程 main 有了 review.txt
+② 本地：`git switch main`（此刻本地还没有 review.txt）
+③ `git fetch`：下载"远程状态信息"——本地 main 没动、文件夹不变
+④ `git log --oneline main..origin/main`：显示"远程有、本地没有"的提交（`A..B` = A 缺的提交）
+⑤ `git diff main origin/main`：显示具体差在哪（文件内容差异）
+⑥ `git pull --ff-only`：真正把远程更新合并到本地 → review.txt 出现
+⑦ `cat review.txt`：确认内容
+⑧ `git branch -d pr-notes`：**删除**已合并的本地分支（-d = delete；内容没丢，提交还在 main 历史里）
+
+一句话：**fetch = 我知道了；pull = 我拿到了。**
+
+## 19. GitHub 网页英文术语速查（PR 相关）
+
+| 英文 | 中文 | 含义 |
+|---|---|---|
+| base: main | 目的地分支 | 改动最终合到哪 |
+| compare: 分支 | 来源分支 | 改动从哪来 |
+| ✓ Able to merge | 可以合并 | 两边没冲突，能自动合 |
+| Create pull request | 创建合并请求 | 递交"合并申请书" |
+| Conversation | 讨论页 | 状态、评论、合并按钮所在 |
+| Files changed | 文件变更页 | 审查这次改了哪些文件 |
+| Commits | 提交列表 | 这个 PR 包含哪些提交 |
+| Merge pull request | 合并按钮 | 点它执行合并 |
+| Create a merge commit | 生成合并提交 | 保留原始提交，加一个接点 |
+| Squash and merge | 压扁合并 | 所有提交压成一个 |
+| Rebase and merge | 变基合并 | 提交重放成直线（哈希变） |
+| Confirm merge | 确认合并 | 最终确认 |
+| Merged | 已合并 | 合并成功状态 |
+| Delete branch | 删除分支 | 删 GitHub 上的来源分支（选填） |
+| Reviewers / Labels | 审阅人 / 标签 | 全是选填，不填不影响 |
+
+## 20. 术语澄清：是"暂存区"，不是"缓存"
+
+`git add` 把改动放进的是 **暂存区（staging area）**，准备提交用的；不要叫"缓存"（cache，指另一个概念）。术语记准，看文档不懵。
