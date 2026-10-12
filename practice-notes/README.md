@@ -34,6 +34,8 @@ Windows PowerShell 里 `echo "内容" > 文件` / `echo "内容" >> 文件` 默�
 | `- Encoding utf8` | `-Encoding utf8` | `-` 和参数名之间不能有空格 |
 | `git merge --no-off` | `git merge --no-ff` | `--no-ff` = 禁止快进，强制生成合并提交 |
 | `git --oline-3` | `git log --oneline -3` | `log` 是命令名，不是 `--oline` |
+| `git addsettings.txt` | `git add settings.txt` | `add` 和文件名之间必须有空格，否则被当成一个命令 |
+| `-c core.editor=ture` | `-c core.editor=true` | `true` 是四个字母；拼错则 git 找不到该程序，`rebase --continue` 无法提交 |
 
 ## 3. 改文件之后忘了 `git add`
 
@@ -107,3 +109,63 @@ git commit -m "Resolve ... conflict"
 1. **VS Code 编辑**：点开文件 → 编辑 → Ctrl+S（默认 UTF-8，最省心）
 2. **PowerShell**：`Set-Content` / `Add-Content` + `-Encoding utf8`
 3. **切到 Git Bash**：VS Code 终端下拉框可选，`echo` 可直接按教程原样使用，不会有编码问题
+
+## 10. 分支名 / 文件名拼错
+
+**分支名**：`git switch -c color-updata`（少打一个 e）→ 创建出名叫 color-updata 的分支。之后按教程正确名字 `git switch color-update` 会报 `fatal: invalid reference: color-update`。
+修复：`git branch -m color-updata color-update`（旧名在前、新名在后；未推送过的本地分支改名安全，内容/历史不变）。
+教训：分支名是精确标识，拼错 = 生成一个错误名字的分支，所有按正确名字的操作都会找不到它。
+
+**文件名**：settings 这个名字踩过两次——
+- `settings.text`（.txt 打成 .text）→ 生成新文件，目标文件没改动
+- `setting.txt`（settings 少个 s）→ 生成新文件，冲突文件 settings.txt 原样未动，"解决"无效
+
+症状：目标文件内容不变、commit 报 "nothing to commit" 或冲突标记仍在。
+修复：`Remove-Item 拼错的文件`（未跟踪，删除安全），再对正确文件名重做。
+
+## 11. 概念：分支是指针，不是文件夹
+
+- 分支 = 指向某个提交的指针；文件夹里永远只有一份工作区文件
+- 新建分支 = 在当前位置复制一个指针（内容一样）→ 切过去文件夹看不出变化，这是正常的
+- 分支切换对文件的影响，只在"提交产生分叉后"才可见（例：切回 main 时 settings.txt 变回 color=blue）
+- 指针链：`HEAD` → 当前分支 → 分支指向的最新提交；`git log --oneline` 里的 `(HEAD -> 分支名)` 就是这条链
+- `git log --oneline -N`：查看最近 N 条提交，每条一行
+- `git branch -m 旧名 新名`：分支改名
+
+## 12. rebase 是什么
+
+`git rebase main`（当前在子分支上）= 把子分支独有的提交一个个摘下来，重放到 main 的最新提交之后。
+
+- 结果：历史变直线；提交内容/消息不变，但**哈希必然变**（父提交变了）
+- 旧提交变成"孤儿提交"（无人引用，git gc 会清理）——不会重复，log/文件只显示新链
+- **不需要站在 main 上**：当前分支是执行者，main 只是"新底座"
+
+### 12.1 为什么 rebase 会冲突（Python 直觉的误区）
+
+- 有先后：`red 之后再 commit green` → 覆盖，无冲突（和 Python 变量覆盖一样）
+- 无先后（并行分支）：两条分支从同一行出发改成不同值 → git 无法决定 → 冲突
+- Python 覆盖的是"当前值"，git 合并的是"并行变更"；冲突不是错误，是 git 把"需要人拍板"的情况暴露出来
+
+### 12.2 rebase 冲突处理三选一
+
+| 命令 | 含义 |
+|---|---|
+| `git rebase --abort` | 整场放弃，回到 rebase 前状态（后悔药） |
+| `git add 文件` + `git -c core.editor=true rebase --continue` | 解决后继续 |
+| `git rebase --skip` | 跳过这条提交（不轻易用） |
+
+### 12.3 冲突标记怎么读
+
+```
+<<<<<<< HEAD      上半区 = 当前分支的版本（rebase 场景 = 新底座）
+=======           分界线
+>>>>>>> 提交说明  下半区 = 对方提交带来的版本
+```
+
+## 13. cat 显示"锘縞"乱码（BOM 显示问题）
+
+`Set-Content -Encoding utf8` 会在文件开头写 UTF-8 BOM（EF BB BF）。当冲突标记把 BOM 挤到文件中间时，PowerShell 的 cat 检测不到文件开头的 BOM，改用 GBK 解码 → BOM 显示成"锘縞"。
+
+- 不是文件坏了：按 UTF-8 解码内容完全正常（git 一直能正确识别）
+- 验证：VS Code 打开，或 `Get-Content 文件 -Encoding UTF8`
+- 覆盖写之后 BOM 回到文件开头，cat 又恢复正常显示
